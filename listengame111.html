@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Signpost Challenge</title>
+    <style>
+        /* CSS 样式：确保页面简洁和反馈明确 */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            transition: background-color 0.5s;
+        }
+
+        .container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #007bff;
+            margin-bottom: 20px;
+        }
+
+        .mode-selection button, #trafficActionButton, #submitAnswer {
+            padding: 12px 25px;
+            font-size: 1.1em;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            color: white;
+            font-weight: bold;
+        }
+
+        .mode-selection button {
+            background-color: #28a745;
+        }
+
+            .mode-selection button:hover {
+                background-color: #1e7e34;
+            }
+
+        /* 关卡状态 */
+        #statusMessage {
+            font-size: 1.5em;
+            min-height: 40px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        /* 红绿灯模式按钮样式 */
+        #trafficActionButton {
+            background-color: #ffc107;
+            color: #333;
+        }
+
+            #trafficActionButton:hover:not(:disabled) {
+                background-color: #e0a800;
+            }
+
+            #trafficActionButton:disabled {
+                background-color: #cccccc;
+                cursor: not-allowed;
+            }
+
+        /* 广播模式样式 */
+        #broadcastInput {
+            padding: 10px;
+            width: 80%;
+            margin: 15px 0;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+        }
+
+        #broadcastControls button {
+            background-color: #6c757d;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+        }
+
+        /* 成功/失败反馈 */
+        .success {
+            background-color: #e6ffe6;
+            border: 2px solid #28a745;
+            color: #28a745;
+        }
+
+        .failure {
+            background-color: #ffe6e6;
+            border: 2px solid #dc3545;
+            color: #dc3545;
+        }
+
+        /* 隐藏区域 */
+        .hidden {
+            display: none;
+        }
+
+        .level-selection button {
+            background-color: #007bff;
+            margin: 5px;
+        }
+
+        .admin-link {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.9em;
+            color: #007bff;
+            cursor: pointer;
+        }
+
+        .admin-section input {
+            padding: 5px;
+            margin: 5px 0;
+            width: 90%;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="admin-link" onclick="toggleAdminPanel()">管理员配置</div>
+
+        <div id="mainContent">
+            <h1>🎧 Sound Signpost Challenge</h1>
+            <p>Select a mode and complete the challenge using auditory cues only!</p>
+
+            <div id="modeSelection" class="mode-selection">
+                <button onclick="showTrafficLightMode()">Traffic Light Mode</button>
+                <button onclick="showBroadcastMode()">Broadcast Mode</button>
+            </div>
+
+            <div id="trafficLightMode" class="hidden">
+                <h2>🚥 Traffic Light Mode</h2>
+                <div id="trafficLevelSelection">
+                    <p>Select Difficulty Level:</p>
+                    <button onclick="startTrafficLightGame('level1')">Level 1 (Clear)</button>
+                    <button onclick="startTrafficLightGame('level2')">Level 2 (Traffic Only)</button>
+                    <button onclick="startTrafficLightGame('level3')">Level 3 (Noisy/Chaotic)</button>
+                    <p><small>Goal: Listen and click the button during the correct time slot.</small></p>
+                </div>
+
+                <div id="trafficGame" class="hidden">
+                    <div id="statusMessage">Ready...</div>
+                    <button id="trafficActionButton" onclick="attemptPass()">Click to Pass</button>
+                    <p><small>Current Audio: <span id="currentAudioName"></span></small></p>
+                </div>
+
+                <button class="controls" onclick="showModeSelection()">Return to Mode Selection</button>
+            </div>
+
+            <div id="broadcastMode" class="hidden">
+                <h2>🔊 Broadcast Mode</h2>
+                <p>Listen repeatedly to the announcement and type what you hear.</p>
+                <div id="broadcastControls">
+                    <button onclick="broadcastAudioEl.play()">Play/Continue</button>
+                    <button onclick="broadcastAudioEl.pause()">Pause</button>
+                    <button onclick="resetBroadcastAudio()">Replay Audio</button>
+                </div>
+                <input type="text" id="broadcastInput" placeholder="Enter the broadcast content you hear">
+                <button id="submitAnswer" onclick="submitAnswer()">Submit Answer</button>
+
+                <div id="broadcastStatus" style="margin-top: 15px;"></div>
+                <button class="controls" onclick="showModeSelection()">Return to Mode Selection</button>
+            </div>
+        </div>
+
+        <div id="adminPanel" class="container hidden admin-section">
+            <h2>⚙️ 管理员配置</h2>
+            <p>修改参数后请点击 **保存配置**。</p>
+
+            <h3>红绿灯模式配置</h3>
+            <div id="trafficConfigInputs">
+            </div>
+
+            <h3>广播模式配置</h3>
+            <label>音频路径 (URL/路径)：</label>
+            <input type="text" id="broadcastAudioSrc" placeholder="broadcast_audio.mp3">
+            <label>正确答案 (逗号分隔)：</label>
+            <input type="text" id="broadcastAnswers" placeholder="威斯敏斯特,Westminster">
+            <label><input type="checkbox" id="broadcastFuzzyMatch"> 开启模糊匹配 (允许轻微错别字)</label>
+
+            <button onclick="saveAdminConfig()" style="background-color: #dc3545; margin-top: 20px;">保存配置</button>
+            <button onclick="toggleAdminPanel()">返回游戏</button>
+        </div>
+    </div>
+
+    <audio id="gameAudio" preload="auto"></audio>
+    <audio id="broadcastAudio" preload="auto" loop></audio>
+
+    <script>// --- 全局变量和初始化 ---
+        const CONFIG_KEY = 'soundSignpostConfig';
+
+        let currentTrafficLevel = null;
+
+        // 默认配置（请替换为您自己的音频路径）
+        const DEFAULT_CONFIG = {
+            trafficLight: {
+                level1: { audioSrc: 'https://13833288559-cyber.github.io/audio/level1.mp3', targetStart: 30, targetEnd: 60, duration: 30 },
+                level2: { audioSrc: 'https://13833288559-cyber.github.io/audio/level2.mp3', targetStart: 44, targetEnd: 64, duration: 30 },
+                level3: { audioSrc: 'https://13833288559-cyber.github.io/audio/level3.mp3', targetStart: 45, targetEnd: 78, duration: 30 }
+            },
+            broadcast: {
+                audioSrc: 'https://13833288559-cyber.github.io/audio/VO.wav',
+                correctAnswers: ['weather', 'change', 'paddington'],
+                fuzzyMatch: false
+            }
+        };
+
+        let gameConfig = JSON.parse(localStorage.getItem(CONFIG_KEY)) || DEFAULT_CONFIG;
+        let isTrafficGameActive = false;
+
+        const audioEl = document.getElementById('gameAudio');
+        const broadcastAudioEl = document.getElementById('broadcastAudio');
+        const statusMessage = document.getElementById('statusMessage');
+        const trafficActionButton = document.getElementById('trafficActionButton');
+
+        // --- 核心功能：页面切换 ---
+        function hideAllSections() {
+            document.getElementById('modeSelection').classList.add('hidden');
+            document.getElementById('trafficLightMode').classList.add('hidden');
+            document.getElementById('broadcastMode').classList.add('hidden');
+            document.getElementById('adminPanel').classList.add('hidden');
+            audioEl.pause();
+            broadcastAudioEl.pause();
+            audioEl.onended = null;
+        }
+
+        function showModeSelection() {
+            hideAllSections();
+            document.getElementById('modeSelection').classList.remove('hidden');
+            document.body.style.backgroundColor = '#f4f4f9';
+        }
+
+        function showTrafficLightMode() {
+            hideAllSections();
+            document.getElementById('trafficLightMode').classList.remove('hidden');
+            document.getElementById('trafficLevelSelection').classList.remove('hidden');
+            document.getElementById('trafficGame').classList.add('hidden');
+            isTrafficGameActive = false;
+            currentTrafficLevel = null;
+        }
+
+        function showBroadcastMode() {
+            hideAllSections();
+            document.getElementById('broadcastMode').classList.remove('hidden');
+            // 初始化广播音频源
+            broadcastAudioEl.src = gameConfig.broadcast.audioSrc;
+            document.getElementById('broadcastStatus').textContent = 'Ready. Click Play to listen.';
+        }
+
+        // --- 核心功能：红绿灯模式 ---
+        function startTrafficLightGame(level) {
+            currentTrafficLevel = level;
+            const config = gameConfig.trafficLight[level];
+
+            document.getElementById('trafficLevelSelection').classList.add('hidden');
+            document.getElementById('trafficGame').classList.remove('hidden');
+
+            // 设置音频源并播放
+            audioEl.src = config.audioSrc;
+            audioEl.currentTime = 0;
+
+            // 重新绑定 Click to Pass 逻辑
+            trafficActionButton.onclick = attemptPass;
+
+            // 确保按钮是可用的 (如果之前被禁用)
+            trafficActionButton.disabled = false;
+
+            // 必须在用户交互后才能播放音频，这里假定用户点击了关卡按钮
+            audioEl.play().catch(e => {
+                statusMessage.textContent = 'Browser restricted autoplay. Click "Click to Pass" to start!';
+            });
+
+            // 确保游戏状态在开始时被激活
+            isTrafficGameActive = true;
+
+            statusMessage.textContent = 'Challenge started! Listen carefully.';
+            statusMessage.className = '';
+
+            trafficActionButton.textContent = 'Click to Pass';
+
+            document.getElementById('currentAudioName').textContent = config.audioSrc.substring(0, 50) + '...';
+
+            // 设置音频播放结束自动失败
+            audioEl.onended = () => {
+                if (isTrafficGameActive) {
+                    handleTrafficResult(false, "Failed! Time ran out, you did not click in the allowed time.");
+                }
+            };
+        }
+
+        function attemptPass() {
+            if (!currentTrafficLevel) return;
+
+            if (!isTrafficGameActive) {
+                // 如果音频未自动播放，第一次点击用于启动音频
+                audioEl.play().catch(() => { });
+                return;
+            }
+
+            const level = currentTrafficLevel;
+            const config = gameConfig.trafficLight[level];
+            const currentTime = audioEl.currentTime;
+
+            audioEl.pause();
+            isTrafficGameActive = false;
+
+            let result = false;
+            let message = '';
+
+            if (currentTime >= config.targetStart && currentTime <= config.targetEnd) {
+                result = true;
+                message = `Success! Click time: ${currentTime.toFixed(2)}s (Target: ${config.targetStart}-${config.targetEnd}s)`;
+            } else if (currentTime < config.targetStart) {
+                message = `Failed! You clicked too early (${currentTime.toFixed(2)}s).`;
+            } else {
+                message = `Failed! You clicked too late (${currentTime.toFixed(2)}s).`;
+            }
+
+            handleTrafficResult(result, message);
+        }
+
+        function handleTrafficResult(success, message) {
+            isTrafficGameActive = false;
+            statusMessage.textContent = message;
+
+            if (success) {
+                // *** 修复成功后按钮逻辑 ***
+                trafficActionButton.disabled = false; // 成功后必须设为可用，让用户点击返回
+                statusMessage.className = 'success';
+                trafficActionButton.textContent = 'Success! Return to Mode Selection';
+                document.body.style.backgroundColor = '#d4edda'; // Success background color
+                trafficActionButton.onclick = showTrafficLightMode; // 绑定到返回关卡选择
+            } else {
+                // 失败后逻辑 (已修复)：按钮设置为可用，并绑定重新挑战当前关卡
+                trafficActionButton.disabled = false;
+                statusMessage.className = 'failure';
+                trafficActionButton.textContent = 'Failed! Challenge Again';
+                document.body.style.backgroundColor = '#f8d7da'; // Failure background color
+                trafficActionButton.onclick = () => startTrafficLightGame(currentTrafficLevel);
+            }
+            audioEl.onended = null; // 移除监听器
+        }
+
+        // --- 核心功能：广播模式 ---
+        function resetBroadcastAudio() {
+            broadcastAudioEl.pause();
+            broadcastAudioEl.currentTime = 0;
+            broadcastAudioEl.play().catch(e => {
+                document.getElementById('broadcastStatus').textContent = 'Browser restricted autoplay. Click "Play/Continue" to start!';
+            });
+        }
+
+        function submitAnswer() {
+            const userInput = document.getElementById('broadcastInput').value;
+            const config = gameConfig.broadcast;
+            const normalizedInput = userInput.trim().toLowerCase();
+            const normalizedAnswers = config.correctAnswers.map(ans => ans.toLowerCase());
+            let broadcastStatus = document.getElementById('broadcastStatus');
+
+            let isCorrect = false;
+
+            // 1. 精确匹配
+            if (normalizedAnswers.includes(normalizedInput)) {
+                isCorrect = true;
+            }
+
+            // 2. 模糊匹配 (如果开启)
+            if (!isCorrect && config.fuzzyMatch) {
+                isCorrect = normalizedAnswers.some(ans => normalizedInput.includes(ans.toLowerCase().substring(0, 3)));
+            }
+
+            if (isCorrect) {
+                broadcastAudioEl.pause();
+                broadcastStatus.textContent = '🎉 Success! You correctly identified the broadcast content!';
+                broadcastStatus.className = 'success';
+                document.getElementById('broadcastInput').disabled = true;
+                document.getElementById('submitAnswer').disabled = true;
+                document.body.style.backgroundColor = '#d4edda';
+            } else {
+                broadcastStatus.textContent = 'Try again! The entered content does not match.';
+                broadcastStatus.className = 'failure';
+                document.body.style.backgroundColor = '#f8d7da';
+            }
+        }
+
+
+        // --- 管理员功能 (保留中文) ---
+        function toggleAdminPanel() {
+            const adminPanel = document.getElementById('adminPanel');
+            const mainContent = document.getElementById('mainContent');
+
+            if (adminPanel.classList.contains('hidden')) { // 显示管理员面板
+                hideAllSections();
+                mainContent.classList.add('hidden');
+                adminPanel.classList.remove('hidden');
+                loadAdminConfig();
+            } else { // 隐藏管理员面板，返回游戏
+                adminPanel.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                showModeSelection(); // 加载模式选择界面
+            }
+        }
+
+        function loadAdminConfig() {
+            // 红绿灯配置加载
+            const trafficConfigDiv = document.getElementById('trafficConfigInputs');
+            trafficConfigDiv.innerHTML = ''; // 清空旧的输入
+            const levels = ['level1', 'level2', 'level3'];
+            levels.forEach(level => {
+                const config = gameConfig.trafficLight[level];
+                trafficConfigDiv.innerHTML += `
+                            <h4>${level} 关卡</h4>
+                            <label>音频路径：</label><input type="text" id="tl_${level}_src" value="${config.audioSrc}">
+                            <label>开始秒数：</label><input type="number" id="tl_${level}_start" value="${config.targetStart}">
+                            <label>结束秒数：</label><input type="number" id="tl_${level}_end" value="${config.targetEnd}">
+                            <hr>
+                        `;
+            });
+
+            // 广播配置加载
+            document.getElementById('broadcastAudioSrc').value = gameConfig.broadcast.audioSrc;
+            document.getElementById('broadcastAnswers').value = gameConfig.broadcast.correctAnswers.join(', ');
+            document.getElementById('broadcastFuzzyMatch').checked = gameConfig.broadcast.fuzzyMatch;
+        }
+
+        function saveAdminConfig() {
+            // 红绿灯配置保存
+            const levels = ['level1', 'level2', 'level3'];
+            levels.forEach(level => {
+                gameConfig.trafficLight[level] = {
+                    audioSrc: document.getElementById(`tl_${level}_src`).value,
+                    targetStart: parseFloat(document.getElementById(`tl_${level}_start`).value) || 0,
+                    targetEnd: parseFloat(document.getElementById(`tl_${level}_end`).value) || 0,
+                    duration: 30 // 简化处理，时长未从音频读取
+                };
+            });
+
+            // 广播配置保存
+            gameConfig.broadcast = {
+                audioSrc: document.getElementById('broadcastAudioSrc').value,
+                correctAnswers: document.getElementById('broadcastAnswers').value.split(',').map(s => s.trim()).filter(s => s.length > 0),
+                fuzzyMatch: document.getElementById('broadcastFuzzyMatch').checked
+            };
+
+            localStorage.setItem(CONFIG_KEY, JSON.stringify(gameConfig));
+            alert('配置已成功保存到本地存储！');
+            toggleAdminPanel(); // 返回游戏
+        }
+
+        // --- 初始化启动 ---
+        window.onload = function () {
+            loadAdminConfig(); // 加载配置，即使在后台
+            showModeSelection(); // 显示主菜单
+        };</script>
+</body>
+</html>
